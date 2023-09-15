@@ -82,7 +82,8 @@ class nData:
     nData is an np.array or either 1,2,3 dimensions and shape=(z,y,x)
         2D: x/y-axis=1/0
         3D: x/y/z-axis=2/1/0 (i.e data[0,:,:]=image at first motor value)
-    
+        making shape agree with numpy
+
     usage
         scan=nData(array)
         scan.data => array
@@ -109,13 +110,13 @@ class nData:
         self.scale = {}
         self.unit = {}
         self.extras = {}
-        self.scale['x'] = np.arange(data.shape[-1])
+        self.scale['x'] = np.arange(data.shape[1])
         self.unit['x'] = ''
         if dim>1:
-            self.scale['y'] = np.arange(data.shape[-2])
+            self.scale['y'] = np.arange(data.shape[0])
             self.unit['y'] = ''
         if dim>2:
-            self.scale['z'] = np.arange(data.shape[-3])
+            self.scale['z'] = np.arange(data.shape[2])
             self.unit['z'] = ''
         return
 

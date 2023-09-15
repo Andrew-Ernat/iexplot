@@ -100,8 +100,6 @@ class nData:
         extras:
             scan.extras() => dictionary with metadata -- see domain specific extensions
             for neccessary keys nData does not require
-        scan.EDC = 1D nData object; sum over all angles
-        scan.MDC = 1D nData object; sum over all energies
             
     """
     def __init__(self, data):
@@ -110,14 +108,17 @@ class nData:
         self.scale = {}
         self.unit = {}
         self.extras = {}
-        self.scale['x'] = np.arange(data.shape[1])
-        self.unit['x'] = ''
-        if dim>1:
+        if dim == 1:
+            self.scale['x'] = np.arange(data.shape[0])
+            self.unit['x'] = ''
+        else:
+            self.scale['x'] = np.arange(data.shape[1])
+            self.unit['x'] = ''
             self.scale['y'] = np.arange(data.shape[0])
             self.unit['y'] = ''
-        if dim>2:
-            self.scale['z'] = np.arange(data.shape[2])
-            self.unit['z'] = ''
+            if dim>2:
+                self.scale['z'] = np.arange(data.shape[2])
+                self.unit['z'] = ''
         return
 
 
@@ -331,12 +332,12 @@ def nstack(nData_list,stack_scale=None,stack_unit="", **kwargs):
                 if len(nData_list[i+1].data.shape) == 1: #adding 1D to image
                     zscale = None
                     zunit = ''
-                elif len(nData_list[i+1].data.shape) == 2: #adding 1D to image
+                elif len(nData_list[i+1].data.shape) == 2: #adding 2D to image
                     zscale = np.array(stack_scale[i])
                     zunit = stack_unit   
-            elif rank == 2: 
-                zscale = d.scale['z']
-                zunit = d.unit['z']
+                elif len(nData_list[i+1].data.shape) == 3: #adding 2D to 3D
+                    zscale = d.scale['z']
+                    zunit = d.unit['z']
             else:
                 print('Can only stack 1D, 2D and 3D data sets')
         else:

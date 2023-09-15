@@ -186,7 +186,9 @@ def pynData_to_ra(d):
 
 
 '''
-
+nstack outputs scales as indices, not correct units
+nData_list is populated in stack_mdaEA and fed through stack_mdaEA -> nstack_ARPES -> nstack
+compare scale stacking to Andrew_sandbox.ipynb?
 
 
 '''

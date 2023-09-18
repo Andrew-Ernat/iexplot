@@ -357,8 +357,7 @@ def nstack(nData_list,stack_scale=None,stack_unit="", **kwargs):
                 stack=np.dstack((stack,d.data))
                 zscale=stack_scale
                 zunit = stack_unit
-    print(xunit,yunit,zunit)
-    print(stack.shape)
+    
 
     d = nData(stack)
     if rank == 1:
@@ -373,7 +372,7 @@ def nstack(nData_list,stack_scale=None,stack_unit="", **kwargs):
         d.updateAx('z', zscale, zunit)
         d.updateAx('y', yscale, yunit)
         d.updateAx('x', xscale, xunit)
-    #d.extras['stack'] = 
+    metadata_stack(nData_list,d)
 
     return d
         
@@ -451,6 +450,23 @@ def nAppend(data1,data2,**kwargs):
         nVol.extras.update({'nDataAppend',['data1','data2']})
         return nVol
 	
+
+def metadata_stack(nData_list,dstack):
+    """
+    Stacking metadata
+    """
+    for i,d in enumerate(nData_list):
+        keys_i = list(vars(nData_list[i]).keys())
+        for key in keys_i:
+            if key not in ['data','scale','unit']:
+                val_i = getattr(d,key)
+                if i == 0:
+                    setattr(dstack,key,[val_i])
+                else:
+                    val = getattr(dstack,key)
+                    val.append(val_i)
+                    setattr(dstack,key,val)
+
 
 
 

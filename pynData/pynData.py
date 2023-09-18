@@ -310,16 +310,21 @@ def nstack(nData_list,stack_scale=None,stack_unit="", **kwargs):
     **kwargs
         extras: standard nData extras dictionary
     """
-    kwargs.setdefault('debug',True)
+    kwargs.setdefault('debug',False)
     kwargs.setdefault('extras',{})
 
     if type(stack_scale) == None:
         stack_scale = np.arange(1,len(nData_list)+1)
 
-        #stacking the data
+    #stacking the data
+    stacklist = []
+    
     for i,d in enumerate(nData_list):
         rank = len(d.data.shape)
         if i==0:
+            stacklist = []
+            if kwargs['debug'] == True:
+                print('rank = '+str(rank))
             stack = d.data
             xscale = d.scale['x']
             xunit = d.unit['x']
@@ -338,6 +343,9 @@ def nstack(nData_list,stack_scale=None,stack_unit="", **kwargs):
                 elif len(nData_list[i+1].data.shape) == 3: #adding 2D to 3D
                     zscale = d.scale['z']
                     zunit = d.unit['z']
+            if kwargs['debug'] == True:
+                print('initialized stack')
+                print(d.unit)
             else:
                 print('Can only stack 1D, 2D and 3D data sets')
         else:
@@ -354,14 +362,18 @@ def nstack(nData_list,stack_scale=None,stack_unit="", **kwargs):
 
     d = nData(stack)
     if rank == 1:
+        if kwargs['debug'] == True:
+            print('updating scales rank 1')
         d.updateAx('x', xscale, xunit)
         d.updateAx('y', yscale, yunit)
     else:
-            d.updateAx('z', zscale, zunit)
-            d.updateAx('y', yscale, yunit)
-            d.updateAx('x', xscale, xunit)
-    d = nData(stack)
-    d.extras['stack']=kwargs['extras']
+        if kwargs['debug'] == True:
+            print('updating scales rank > 1')
+            print(xunit,yunit,zunit)
+        d.updateAx('z', zscale, zunit)
+        d.updateAx('y', yscale, yunit)
+        d.updateAx('x', xscale, xunit)
+    #d.extras['stack'] = 
 
     return d
         

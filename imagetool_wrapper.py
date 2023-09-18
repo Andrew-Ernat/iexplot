@@ -186,9 +186,10 @@ def pynData_to_ra(d):
 
 
 '''
-nstack outputs scales as indices, not correct units
-nData_list is populated in stack_mdaEA and fed through stack_mdaEA -> nstack_ARPES -> nstack
-compare scale stacking to Andrew_sandbox.ipynb?
+pg_win stores cursor and bin info relative to index, not numerical values
 
+axes and coordinates of imagetool are also relative to index
+are numerical scales stored in imagetool?
+some way to index numerical values for cursor/bin positions
 
 '''

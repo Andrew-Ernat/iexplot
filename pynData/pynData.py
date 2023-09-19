@@ -80,9 +80,9 @@ hc_over_e = 12.4            # hc/e in keV⋅A
 class nData:
     """
     nData is an np.array or either 1,2,3 dimensions and shape=(z,y,x)
-        2D: x/y-axis=1/0
-        3D: x/y/z-axis=2/1/0 (i.e data[0,:,:]=image at first motor value)
-        making shape agree with numpy
+        2D: shape = (y,x)
+        3D: shape = (y,x,z) (i.e data[0,:,:]=image at first motor value)
+        
 
     usage
         scan=nData(array)

@@ -50,7 +50,6 @@ def niceplot_avg(d,ax='y',Cen=np.nan,WidthPix=np.nan):
             CenPix = np.argmin((Scale-Cen)**2)
         if np.isnan(WidthPix):
             WidthPix=len(Scale)//2
-
         if(ax is 'x'):
             img_avg = np.nansum(d.data[:,CenPix-WidthPix:CenPix+WidthPix], axis=1)
             bx='y'
@@ -334,16 +333,18 @@ def Compare2D(d1,d2,**kwargs): #JM added
 	return 
 ####################################################################################################
 
-def plot3D(d, ax='z', xCen=np.nan, xWidthPix=0, yCen=np.nan, yWidthPix=0, zCen=np.nan, zWidthPix=0):
+def plot3D(d, ax='z', xCen=np.nan, xWidthPix=0, yCen=np.nan, yWidthPix=0, zCen=np.nan, zWidthPix=0,**kwargs):
     '''
-    img3D:      3D array.
-    xScale:     Dim 2.
-    yScale:     Dim 1.
-    zScale:     Dim 0.
+    img3D:      3D array.shape = y,x,z
+    xScale:     Dim 1.
+    yScale:     Dim 0.
+    zScale:     Dim 2.
 
     Input:
     ax:         Default is 'z'. Along which dimension to show the line cut
     '''
+    kwargs.setdefault('debug',False) 
+
     img3D = d.data
     xScale = d.scale['x']
     xUnit = d.unit['x']
@@ -351,6 +352,10 @@ def plot3D(d, ax='z', xCen=np.nan, xWidthPix=0, yCen=np.nan, yWidthPix=0, zCen=n
     yUnit = d.unit['y']
     zScale = d.scale['z']
     zUnit = d.unit['z']
+
+    if kwargs['debug'] == True:
+          print(img3D.shape)
+          print(yScale.shape,xScale.shape,zScale.shape)
 
     if np.isnan(xCen):
         xCenPix = len(xScale)//2
@@ -366,23 +371,25 @@ def plot3D(d, ax='z', xCen=np.nan, xWidthPix=0, yCen=np.nan, yWidthPix=0, zCen=n
         zCenPix = len(zScale)//2
     else:
         zCenPix = np.argmin((zScale-zCen)**2)
+
     # Image cut at z
     if zWidthPix>0:
         zImage = np.nansum(img3D[zCenPix-zWidthPix:zCenPix+zWidthPix,:,:], axis=0)
     else:
-        zImage = img3D[zCenPix,:,:]
+        zImage = img3D[:,:,zCenPix]
 
     # Image cut at y
     if yWidthPix>0:
         yImage = np.nansum(img3D[:,yCenPix-yWidthPix:yCenPix+yWidthPix,:], axis=1)
     else:
-        yImage = img3D[:,yCenPix,:]
+        yImage = img3D[yCenPix,:,:]
+    yImage = yImage.transpose()
 
     # Image cut at x
     if xWidthPix>0:
         xImage = np.nansum(img3D[:,:,xCenPix-xWidthPix:xCenPix+xWidthPix], axis=2)
     else:
-        xImage = img3D[:,:,xCenPix]
+        xImage = img3D[:,xCenPix,:]
 
     # Plotting fig
     if ax=='z':
@@ -412,7 +419,7 @@ def plot3D(d, ax='z', xCen=np.nan, xWidthPix=0, yCen=np.nan, yWidthPix=0, zCen=n
         
         ax3 = fig.add_subplot(gs[1, 1], sharey=ax1)
         zyScale = np.meshgrid(zScale, yScale)
-        im3 = ax3.pcolormesh(zyScale[0], zyScale[1], xImage.transpose())
+        im3 = ax3.pcolormesh(zyScale[0], zyScale[1], xImage)
         ax3.yaxis.set_visible(False)
         ax3.set_xlabel(zUnit)
         ax3.set_ylabel(yUnit)
@@ -420,7 +427,7 @@ def plot3D(d, ax='z', xCen=np.nan, xWidthPix=0, yCen=np.nan, yWidthPix=0, zCen=n
         if yWidthPix>0:
             zCut = np.nansum(xImage[:,yCenPix-yWidthPix:yCenPix+yWidthPix], axis=1)
         else:
-            zCut = xImage[:,yCenPix]
+            zCut = xImage[yCenPix,:]
         
         ax0 = fig.add_subplot(gs[0, 1], sharex=ax3)
         ax0.yaxis.set_visible(False)
@@ -439,6 +446,8 @@ def plot3D(d, ax='z', xCen=np.nan, xWidthPix=0, yCen=np.nan, yWidthPix=0, zCen=n
         
         cut = nData(zCut)
         cut.updateAx('x', zScale, zUnit)
+   
+   
     elif ax=='y':
         fig = plt.figure(figsize=(5,5))
         gs = fig.add_gridspec(2, 2)
@@ -549,8 +558,8 @@ def plot3D(d, ax='z', xCen=np.nan, xWidthPix=0, yCen=np.nan, yWidthPix=0, zCen=n
         cut.updateAx('x', xScale, xUnit)
         
     xImage = nData(xImage)
-    xImage.updateAx('x', yScale, yUnit)
-    xImage.updateAx('y', zScale, zUnit)
+    xImage.updateAx('y', yScale, yUnit)
+    xImage.updateAx('x', zScale, zUnit)
     
     yImage = nData(yImage)
     yImage.updateAx('x', xScale, xUnit)

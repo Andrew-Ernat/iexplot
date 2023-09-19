@@ -258,36 +258,3 @@ def nARPES_h5Group_r(h):
             setattr(d,attr,ast.literal_eval(h.attrs[attr]))
     return d   
 
-def nstack_ARPES(nARPES_list,stack_scale,stack_unit,**kwargs):
-    """
-    Stack a list of nARPES objects
-    """
-    #stacking data
-    d = nstack(nARPES_list,stack_scale,stack_unit,**kwargs)
-    print(type(d))
-    #stacking metadata
-    attr = ARPES_metadata_stack(nARPES_list)
-    for key in attr.keys():
-        setattr(d, key, attr[key])
-
-    return d
-    
-def ARPES_metadata_stack(nARPES_list):
-    """
-    Stacking ARPES metadata
-    """
-
-    attr={}
-    for i,nARPES in enumerate(nARPES_list):
-        attr_i = nARPES.get_nARPESattributes()
-        for key in attr_i.keys():
-            val_i = attr_i[key]
-            if i == 0:
-                attr[key] = [val_i]
-            else:
-                val = attr[key]
-                val.append(val_i)
-                attr.update({key:val})
-        
-    return attr
-

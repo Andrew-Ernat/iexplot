@@ -96,12 +96,12 @@ class IEX_IT:
         tool.show()
 
 
-    def it_stack_mdaEA(self, scanNum):
+    def it_stack_mdaEA(self, scanNum, **kwargs):
         """
         plot 3D mda EA data in imagetool
         """
 
-        d = self.stack_mdaEA(scanNum)
+        d = self.stack_mdaEA(scanNum,**kwargs)
         ra = pynData_to_ra(d)
 
         tool = it.imagetool(ra)
@@ -171,20 +171,32 @@ def pynData_to_ra(d):
     
     if len(d.data.shape)==2:
         dataArray = d.data.transpose(1,0)
-        scaleArray = (d.scale['y'],d.scale['x'])
-        unitArray = (d.unit['y'],d.unit['x'])
+        #scaleArray = (d.scale['y'],d.scale['x'])
+        #unitArray = (d.unit['y'],d.unit['x'])
+        #dataArray = d.data
+        scaleArray = (d.scale['x'],d.scale['y'])
+        unitArray = (d.unit['x'],d.unit['y'])
+        delta = (scaleArray[0][1]-scaleArray[0][0],scaleArray[1][1]-scaleArray[1][0])
+        coord_min = [scaleArray[0][0],scaleArray[1][1]]
     elif len(d.data.shape)==3:
         dataArray = d.data.transpose(1,0,2)
-        scaleArray = (d.scale['y'],d.scale['x'],d.scale['z'])
-        unitArray = (d.unit['y'],d.unit['x'],d.unit['z'])
+        #scaleArray = (d.scale['y'],d.scale['x'],d.scale['z'])
+        #unitArray = (d.unit['y'],d.unit['x'],d.unit['z'])
+        #dataArray = d.data
+        scaleArray = (d.scale['x'],d.scale['y'],d.scale['z'])
+        unitArray = (d.unit['x'],d.unit['y'],d.unit['z'])
+        delta = (scaleArray[0][1]-scaleArray[0][0],scaleArray[1][1]-scaleArray[1][0],scaleArray[2][1]-scaleArray[2][0])
+        coord_min = [scaleArray[0][0],scaleArray[1][1],scaleArray[2][2]]
     else:
         print("don't yet know how to deal with data of shape"+str(d.data.shape))
     
-    ra = it.RegularDataArray(dataArray, delta = (scaleArray[0][1]-scaleArray[0][0],scaleArray[1][1]-scaleArray[1][0],scaleArray[2][1]-scaleArray[2][0]), coord_min = [scaleArray[0][0],scaleArray[1][1],scaleArray[2][2]], dims = unitArray)
+    ra = it.RegularDataArray(dataArray, delta = delta, coord_min = coord_min, dims = unitArray)
 
     return ra
 
 
 '''
-
+check to make sure functions work with mda files
+control cursors from command line
+interpolate scales
 '''

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from iexplot.utilities import _shortlist, _make_num_list 
 from iexplot.plotting import plot_1D, plot_2D, plot_dstack
-from iexplot.pynData.pynData_ARPES import nstack_ARPES
+from iexplot.pynData.pynData import nstack
 
 class PlotEA:
     """
@@ -204,6 +204,9 @@ class PlotEA:
                     print(stack_unit)
                 for EAnum in self.mda[scanNum].EA.keys():
                     if kwargs['EDConly']:
+                        if kwargs['debug']:
+                            #print('EDConly')
+                            pass
                         nData_list.append(self.mda[scanNum].EA[EAnum].EDC)
                     else:
                         nData_list.append(self.mda[scanNum].EA[EAnum])
@@ -222,7 +225,7 @@ class PlotEA:
         kwargs.update({'extras':extras})
 
         #Stacking data
-        d = nstack_ARPES(nData_list,stack_scale,stack_unit,**kwargs)
+        d = nstack(nData_list,stack_scale,stack_unit,**kwargs)
         
         
 

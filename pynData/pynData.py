@@ -343,15 +343,13 @@ def nstack(nData_list,stack_scale=None,stack_unit="", **kwargs):
                 elif len(nData_list[i+1].data.shape) == 3: #adding 2D to 3D
                     zscale = d.scale['z']
                     zunit = d.unit['z']
-            if kwargs['debug'] == True:
-                print('initialized stack')
-                print(d.unit)
             else:
                 print('Can only stack 1D, 2D and 3D data sets')
         else:
             if rank == 1: #stacking along y
                 stack=np.vstack((stack,d.data))
-                
+                yscale=stack_scale
+                yunit = stack_unit
 
             else: #stacking along z
                 stack=np.dstack((stack,d.data))
@@ -365,6 +363,7 @@ def nstack(nData_list,stack_scale=None,stack_unit="", **kwargs):
             print('updating scales rank 1')
         d.updateAx('x', xscale, xunit)
         d.updateAx('y', yscale, yunit)
+        print(yscale)
     else:
         if kwargs['debug'] == True:
             print('updating scales rank > 1')

@@ -186,10 +186,5 @@ def pynData_to_ra(d):
 
 
 '''
-pg_win stores cursor and bin info relative to index, not numerical values
-
-axes and coordinates of imagetool are also relative to index
-are numerical scales stored in imagetool?
-some way to index numerical values for cursor/bin positions
 
 '''

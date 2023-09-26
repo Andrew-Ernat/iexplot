@@ -199,4 +199,7 @@ def pynData_to_ra(d):
 check to make sure functions work with mda files
 control cursors from command line
 interpolate scales
+
+it_export
+plot_3D
 '''

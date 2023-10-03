@@ -34,6 +34,7 @@ def niceplot(*ds,**kwargs):
                 plot_2D(img,scales,units,**kwargs)
                 
             elif dim==3:
+                img = d.data
                 scales = [d.scale['y'],d.scale['x'],d.scale['z']]
                 units = [d.unit['y'],d.unit['x'],d.unit['z']]
                 plot_3D(img,scales,units,**kwargs)
@@ -41,7 +42,7 @@ def niceplot(*ds,**kwargs):
             else:
                 print('Warning: niceplot can only plot 1d and 2d data.')
     except:
-            print('Note a valid object')
+            print('Not a valid object')
     plt.show()
 
 

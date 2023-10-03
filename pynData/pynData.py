@@ -116,7 +116,7 @@ class nData:
             self.unit['x'] = ''
             self.scale['y'] = np.arange(data.shape[0])
             self.unit['y'] = ''
-            if dim>2:
+            if dim > 2:
                 self.scale['z'] = np.arange(data.shape[2])
                 self.unit['z'] = ''
         return

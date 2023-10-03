@@ -24,6 +24,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import ast
+from scipy import interpolate
+
 
 from iexplot.pynData.pynData import nData, nData_h5Group_r, nData_h5Group_w, nstack
 from iexplot.utilities import *
@@ -37,6 +39,69 @@ me = 5.68562958e-32         # Electron mass in eV*(Angstroms^(-2))*s^2
 hbar = 6.58211814e-16       # hbar in eV*s
 hc_over_e = 12.3984193      # hc/e in keV⋅A
 hc_e = 1239.84193           # hc/e in eV*A
+
+#==============================================================================
+# functions to convert to and from k-space
+#==============================================================================
+
+def theta_to_kx(KE, thetaX):
+    '''
+    thetaX = polar angle
+    kx = c*sqrt(KE)*sin(thetaX)
+    '''
+
+    c = np.sqrt(2*me)/hbar
+    kx = c*np.sqrt(KE)*np.sin(thetaX*np.pi/180.)
+
+    return kx
+
+
+def theta_to_ky(KE, thetaX, thetaY):
+    '''
+    thetaX = polar angle
+    thetaY = other angle
+    ky = c*sqrt(KE)*cos(thetaX)*sin(thetaY)
+    '''
+    c = np.sqrt(2*me)/hbar
+    ky = c*np.sqrt(KE)*np.cos(thetaX*np.pi/180.)*np.sin(thetaY*np.pi/180.)
+    
+    return ky
+
+
+def theta_to_kz(KE, thetaX, thetaY, V0=10):
+    '''
+    thetaX = polar angle
+    thetaY = other angle
+    V0=inner potential
+    kz = c*sqrt(V0-KE*(sin(thetaX)+cos(thetaX)*sin(thetaY)+1))
+    '''
+    c = np.sqrt(2*me)/hbar
+    kz = c*np.sqrt(V0-KE*(np.sin(thetaX)+np.cos(thetaX)*np.cos(thetaY)+1)) #equation is probably wrong JM look into this
+
+    return kz
+    
+
+def k_to_thetaX(KE, kx):
+    '''
+    
+    '''
+    
+    c = np.sqrt(2*me)/hbar
+    thetaX = np.arcsin(kx/(c*np.sqrt(KE)))
+    
+    return thetaX
+
+def k_to_thetaY(KE, kx, ky):
+    '''
+    
+    '''
+    
+    c = np.sqrt(2*me)/hbar
+    thetaY = np.arcsin(ky/(c*np.sqrt(KE)*np.cos(np.arcsin(kx/(c*np.sqrt(KE))))))
+    
+    return thetaY
+    
+
 
 ###############################################################################################
 class nARPES(nData):
@@ -141,6 +206,10 @@ class nARPES(nData):
         self.wk(val)
         self._BE_calc()
     
+#==============================================================================
+# adjusting angle scaling
+#==============================================================================
+    
     def scaleAngle(self,delta=0):
         """
         changest the angle scaling of the data and the MDC
@@ -154,25 +223,110 @@ class nARPES(nData):
         self.updateAx('y',newScale,"Angle (deg)")
         self.MDC.updateAx('x',newScale,"Angle (deg)")
     
-    #==============================================================================
-    # converting to and from k-space
-    #==============================================================================
-    def theta_to_k(KE, thetaX, thetaY, V0=10):
+#==============================================================================
+# calculating k scaling
+#==============================================================================
+
+    def kx_min_max(self, KE, thetaX):
         '''
-        thetaX = polar angle
-        thetaY = other angle
-        V0=inner potential
-        kx = c*sqrt(KE)*sin(thetaX)
-        ky = c*sqrt(KE)*cos(thetaX)*sin(thetaY)
-        kz = c*sqrt(V0-KE*(sin(thetaX)+cos(thetaX)*sin(thetaY)+1))
+        KE type: numpy array
+        thetaX type: numpy array
         '''
-        c = np.sqrt(2*me)/hbar
-        kx = c*np.sqrt(KE)*np.sin(thetaX*np.pi/180.)
-        ky = c*np.sqrt(KE)*np.cos(thetaX*np.pi/180.)*np.sin(thetaY*np.pi/180.)
-        kz = c*np.sqrt(V0-KE*(np.sin(thetaX)+np.cos(thetaX)*np.cos(thetaY)+1))
-    
-        return kx, ky, kz
+        kx_max = theta_to_kx(np.max(KE),np.max(thetaX))
+        kx_min = theta_to_kx(np.max(KE),np.min(thetaX))
         
+        return kx_min, kx_max
+        
+        
+    def ky_min_max(self, KE, thetaX, thetaY):
+        '''
+        KE type: numpy array
+        thetaX type: numpy array
+        thetaY type: numpy array
+        '''
+        ky_max = theta_to_ky(np.max(KE),np.min(thetaX),np.max(thetaY))
+        ky_min = theta_to_ky(np.max(KE),np.max(thetaX),np.min(thetaY))
+        
+        return ky_min, ky_max
+
+    def kScale(self, KE, thetaY, thetaX=np.empty):
+        
+        kx_min, kx_max = nARPES.kx_min_max(nARPES, KE, thetaX)
+        kx_scale = np.linspace(kx_min, kx_max,len(thetaX))
+        
+        ky_min, ky_max = nARPES.ky_min_max(nARPES, KE, thetaX, thetaY)
+        ky_scale = np.linspace(ky_min, ky_max,len(thetaY))
+        
+        return kx_scale, ky_scale
+    
+def _calc_BEscale_by_hand(d,KE,hv=None,wk=None):  
+    """#when we fix types we can use _calc_BE  """
+    if hv.all() == None:
+        try:
+            hv = d.hv
+        except:
+            print("You need to specify hv, can't read metadata")
+            return
+    if wk == None:
+        try:
+            wk = d.wk
+        except:
+            print("You need to specify wk, can't read metadata")
+            return
+    BE = hv-wk-KE 
+    return BE
+   
+def kmap_scan_theta(d,hv=None,wk=None):
+    '''
+    d type: pynData stack (degrees, KE, theta)
+    returns pynData (ky, kx, BE)
+    '''
+    KE = d.scale['x']
+    thetaY = d.scale['y']
+    thetaX = d.scale['z']
+    
+    org = d.data #data(thetaY, KE, thetaX)
+    
+    kx_scale, ky_scale = nARPES.kScale(nARPES, KE, thetaY, thetaX)
+    
+    new = np.zeros((len(ky_scale),len(KE),len(kx_scale)))
+    new = interpolate.RegularGridInterpolator((ky_scale,KE,kx_scale),org, method = 'linear')
+    
+    dnew = nData(new.values.transpose(0,2,1))
+    
+    BE = _calc_BEscale_by_hand(d,KE,hv,wk)
+    nData.updateAx(dnew,'x',kx_scale,'kx')
+    nData.updateAx(dnew,'y',ky_scale,'ky')
+    nData.updateAx(dnew,'z',BE,'BE')
+    
+    return dnew
+
+def kmap_scan_hv(d,wk):
+    '''
+    d type: pynData stack (degrees, KE, hv)
+    returns pynData (ky, BE, hv)
+    '''
+    KE = d.scale['x']
+    thetaY = d.scale['y']
+    hv = d.scale['z']
+    thetaX = np.zeros(len(hv))
+
+    org = d.data #data(thetaY, KE, hv)
+
+    kx_scale, ky_scale = nARPES.kScale(nARPES, KE, thetaY, thetaX)
+
+    new = np.zeros((len(ky_scale),len(KE),len(hv)))
+    new = interpolate.RegularGridInterpolator((ky_scale,KE,hv),org, method = 'linear')
+
+    dnew = nData(new.values.transpose(1,0,2))
+    
+    BE = _calc_BEscale_by_hand(d,KE,hv,4.6)
+    nData.updateAx(dnew,'x',ky_scale,'ky')
+    nData.updateAx(dnew,'y',BE,'BE')
+    nData.updateAx(dnew,'z',hv,'hv')
+
+    return dnew
+
 ###############################################################################################
 def plotEDCs(*d,**kwargs):
     """

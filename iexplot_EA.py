@@ -164,7 +164,7 @@ class PlotEA:
         kwargs.pop('array_output')
         if 'EAnum' in kwargs:
             kwargs.pop('EAnum')
-        plot_dstack(np.array(dataArray),np.array(scaleArray),unitArray,**kwargs)
+        plot_3D(np.array(dataArray),np.array(scaleArray),unitArray,**kwargs)
 
     def stack_mdaEA(self,*args,**kwargs):
         """

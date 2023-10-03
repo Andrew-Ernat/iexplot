@@ -308,7 +308,7 @@ def kmap_scan_hv(d,wk):
     '''
     KE = d.scale['x']
     thetaY = d.scale['y']
-    hv = d.scale['z']
+    hv = d.scale['z'] 
     thetaX = np.zeros(len(hv))
 
     org = d.data #data(thetaY, KE, hv)

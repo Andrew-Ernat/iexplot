@@ -21,6 +21,7 @@
 #==============================================================================
 # imports
 #==============================================================================
+import math
 import numpy as np
 import matplotlib.pyplot as plt
 import ast
@@ -30,77 +31,7 @@ from scipy import interpolate
 from iexplot.pynData.pynData import nData, nData_h5Group_r, nData_h5Group_w, nstack
 from iexplot.utilities import *
 from iexplot.plotting import plot_1D
-#==============================================================================
-# Global variables in science
-#==============================================================================
-
-kB = 8.6173423e-05          # Boltzmann k in eV/K
-me = 5.68562958e-32         # Electron mass in eV*(Angstroms^(-2))*s^2
-hbar = 6.58211814e-16       # hbar in eV*s
-hc_over_e = 12.3984193      # hc/e in keV⋅A
-hc_e = 1239.84193           # hc/e in eV*A
-
-#==============================================================================
-# functions to convert to and from k-space
-#==============================================================================
-
-def theta_to_kx(KE, thetaX):
-    '''
-    thetaX = polar angle
-    kx = c*sqrt(KE)*sin(thetaX)
-    '''
-
-    c = np.sqrt(2*me)/hbar
-    kx = c*np.sqrt(KE)*np.sin(thetaX*np.pi/180.)
-
-    return kx
-
-
-def theta_to_ky(KE, thetaX, thetaY):
-    '''
-    thetaX = polar angle
-    thetaY = other angle
-    ky = c*sqrt(KE)*cos(thetaX)*sin(thetaY)
-    '''
-    c = np.sqrt(2*me)/hbar
-    ky = c*np.sqrt(KE)*np.cos(thetaX*np.pi/180.)*np.sin(thetaY*np.pi/180.)
-    
-    return ky
-
-
-def theta_to_kz(KE, thetaX, thetaY, V0=10):
-    '''
-    thetaX = polar angle
-    thetaY = other angle
-    V0=inner potential
-    kz = c*sqrt(V0-KE*(sin(thetaX)+cos(thetaX)*sin(thetaY)+1))
-    '''
-    c = np.sqrt(2*me)/hbar
-    kz = c*np.sqrt(V0-KE*(np.sin(thetaX)+np.cos(thetaX)*np.cos(thetaY)+1)) #equation is probably wrong JM look into this
-
-    return kz
-    
-
-def k_to_thetaX(KE, kx):
-    '''
-    
-    '''
-    
-    c = np.sqrt(2*me)/hbar
-    thetaX = np.arcsin(kx/(c*np.sqrt(KE)))
-    
-    return thetaX
-
-def k_to_thetaY(KE, kx, ky):
-    '''
-    
-    '''
-    
-    c = np.sqrt(2*me)/hbar
-    thetaY = np.arcsin(ky/(c*np.sqrt(KE)*np.cos(np.arcsin(kx/(c*np.sqrt(KE))))))
-    
-    return thetaY
-    
+from iexplot.pynData.ARPES_functions import *
 
 
 ###############################################################################################
@@ -178,7 +109,7 @@ class nARPES(nData):
 
         KE=np.array(self.KEscale)
         try:
-            self.BEscale = hv-wk-KE
+            self.BEscale = KE_to_BE(KE,hv,wk)
         except:
             print('BEscale not calculated')
             print(hv,wk)
@@ -227,55 +158,6 @@ class nARPES(nData):
 # calculating k scaling
 #==============================================================================
 
-    def kx_min_max(self, KE, thetaX):
-        '''
-        KE type: numpy array
-        thetaX type: numpy array
-        '''
-        kx_max = theta_to_kx(np.max(KE),np.max(thetaX))
-        kx_min = theta_to_kx(np.max(KE),np.min(thetaX))
-        
-        return kx_min, kx_max
-        
-        
-    def ky_min_max(self, KE, thetaX, thetaY):
-        '''
-        KE type: numpy array
-        thetaX type: numpy array
-        thetaY type: numpy array
-        '''
-        ky_max = theta_to_ky(np.max(KE),np.min(thetaX),np.max(thetaY))
-        ky_min = theta_to_ky(np.max(KE),np.max(thetaX),np.min(thetaY))
-        
-        return ky_min, ky_max
-
-    def kScale(self, KE, thetaY, thetaX=np.empty):
-        
-        kx_min, kx_max = nARPES.kx_min_max(nARPES, KE, thetaX)
-        kx_scale = np.linspace(kx_min, kx_max,len(thetaX))
-        
-        ky_min, ky_max = nARPES.ky_min_max(nARPES, KE, thetaX, thetaY)
-        ky_scale = np.linspace(ky_min, ky_max,len(thetaY))
-        
-        return kx_scale, ky_scale
-    
-def _calc_BEscale_by_hand(d,KE,hv=None,wk=None):  
-    """#when we fix types we can use _calc_BE  """
-    if hv.all() == None:
-        try:
-            hv = d.hv
-        except:
-            print("You need to specify hv, can't read metadata")
-            return
-    if wk == None:
-        try:
-            wk = d.wk
-        except:
-            print("You need to specify wk, can't read metadata")
-            return
-    BE = hv-wk-KE 
-    return BE
-   
 def kmap_scan_theta(d,hv=None,wk=None):
     '''
     d type: pynData stack (degrees, KE, theta)
@@ -294,7 +176,7 @@ def kmap_scan_theta(d,hv=None,wk=None):
     
     dnew = nData(new.values.transpose(0,2,1))
     
-    BE = _calc_BEscale_by_hand(d,KE,hv,wk)
+    BE = KE_to_BE(KE,hv,wk)
     nData.updateAx(dnew,'x',kx_scale,'kx')
     nData.updateAx(dnew,'y',ky_scale,'ky')
     nData.updateAx(dnew,'z',BE,'BE')
@@ -320,51 +202,155 @@ def kmap_scan_hv(d,wk):
 
     dnew = nData(new.values.transpose(1,0,2))
     
-    BE = _calc_BEscale_by_hand(d,KE,hv,4.6)
+    BE = KE_to_BE(KE,hv,wk)
     nData.updateAx(dnew,'x',ky_scale,'ky')
     nData.updateAx(dnew,'y',BE,'BE')
     nData.updateAx(dnew,'z',hv,'hv')
 
     return dnew
 
-###############################################################################################
-def plotEDCs(*d,**kwargs):
+def kmapping_boundries_slice(EA, V0=10):
     """
-    Simple plot for EDCs 
+    EA = pynData_ARPES object
+    """
+    #Kinetic Energy
+    KE_min = np.min(EA.KEscale)
+    KE_max = np.max(EA.KEscale)
+    #k_parallel
+    if EA.slitDir == 'H':
+        thetaX_min = np.min(EA.angScale)+EA.thetaX
+        thetaX_max = np.min(EA.angScale)+EA.thetaX
+        kx_min = theta_to_kx(KE_max,thetaX_min)
+        kx_max = theta_to_kx(KE_max,thetaX_max)    
+        thetaY = EA.thetaY
+        ky_min = theta_to_ky(KE_max,thetaX_min,thetaY)
+        ky_max = theta_to_ky(KE_max,thetaX_max,thetaY)
+    elif EA.slitDir == 'V':
+        thetaX = EA.thetaX
+        kx_min = theta_to_kx(KE_max,thetaX)
+        kx_max = theta_to_kx(KE_max,thetaX)
+        thetaY_min = np.min(EA.angScale)
+        thetaY_max = np.max(EA.angScale)
+        ky_min = theta_to_ky(KE_max,thetaX,thetaY_min)
+        ky_max = theta_to_ky(KE_max,thetaX,thetaY_max)
+    #k_perpendicular    
+    #min kz at maximum k magnitudes and smallest KE
+    kx = max(abs(kx_min),abs(kx_max)) 
+    ky = max(abs(ky_min),abs(ky_max)) 
+    kz_min = k_to_kz(kx, ky, KE_min, V0)
+    #max kz at min k magnitudes and largest KE
+    kx = min(abs(kx_min),abs(kx_max)) 
+    ky = min(abs(ky_min),abs(ky_max)) 
+    kz_max = k_to_kz(kx, ky, KE_max, V0)
+    return  KE_min, KE_max, kx_min, kx_max, ky_min, ky_max, kz_min, kz_max
 
-    *d  set of pynData_ARPES data
+def kmapping_boundries(EA_list):
+    """
+    EA_list = list of pynData_ARPES objects
     
-    uses the current scale['x'] for the energy axis
-        d.scaleKE() or d.scaleBE() to set
-
-    kwargs:
-        matplotlib.plot kwargs
     """
-    for di in list(d):
-        x = di.EDC.scale['x']
-        y = di.EDC.data
-        kwargs.update({'xlabel':di.EDC.unit['x']})
-        plot_1D(x,y,**kwargs)
-    return
+    for n,EA in enumerate(EA_list):
+        if n == 0: 
+            KE_min, KE_max, kx_min, kx_max, ky_min, ky_max, kz_min, kz_max = kmapping_boundries_slice(EA)
+        #else:
+        _KE_min, _KE_max, _kx_min, _kx_max, _ky_min, _ky_max, _kz_min, _kz_max = kmapping_boundries_slice(EA)
+        KE_min = min(KE_min, _KE_min)
+        KE_max = max(KE_max, _KE_max)
+        kx_min = min(kx_min, _kx_min)
+        kx_max = max(kx_max, _kx_max) 
+        ky_min = min(ky_min, _ky_min)
+        ky_max = max(ky_max, _ky_max) 
+        kz_min = min(kz_min, _kz_min)
+        kz_max = max(kz_max, _kz_max) 
+    return KE_min, KE_max, kx_min, kx_max, ky_min, ky_max, kz_min, kz_max
 
-def plotMDCs(*d,**kwargs):
+def kmapping_energy_scale(EA,E_unit='BE',**kwargs):
     """
-    Simple plot for EDCs 
-
-    *d  set of pynData_ARPES data
+    EA is pynData object
+    Eunit = 'BE' / 'KE'
+    **kwargs (all can be a float or a np.array of the same length as KEscale)
+        hv = photon energy, default is EA.hv
+        wk = work function, default is EA.wk
+        KE_offset = Kinetic energy offset, default = 0
     
-    uses the current scale['x'] for the energy axis
-        d.scaleKE() or d.scaleBE() to set
-
-    kwargs:
-        matplotlib.plot kwargs
+    returns EA image scaling in KE or BE including an offsets
     """
-    for di in list(d):
-        x = di.MDC.scale['x']
-        y = di.MDC.data
-        kwargs.update({'xlabel':di.MDC.unit['x']})
-        plot_1D(x,y,**kwargs)
-    return
+    kwargs.setdefault('hv',EA.hv)
+    kwargs.setdefault('wk',EA.wk)
+    kwargs.setdefault('KE_offset',0.0)
+    
+    KE = EA.KEscale+kwargs['KE_offset']
+    wk = kwargs['wk']
+    hv = kwargs['hv']
+    
+    if E_unit == 'BE':
+        E_scale = KE_to_BE(KE,hv,wk)
+    elif E_unit == 'KE':
+        E_scale = KE
+    else:
+        print("Eunit is either 'KE' or 'BE'")
+    return E_scale
+        
+
+def kmapping_stack(EA_list, E_unit='BE',**kwargs):
+    """
+    """
+    kwargs.setdefault('KE_offset',0.0)
+    KE_min, KE_max, kx_min, kx_max, ky_min, ky_max, kz_min, kz_max = kmapping_boundries(EA_list)
+    EA = EA_list[0]
+    
+    #energy BE/KE
+    BE_min = KE_to_BE(np.min(EA.KEscale),EA.hv,EA.wk)
+    BE_max = max(KE_to_BE(KE_max,EA.hv,EA.wk),KE_to_BE(KE_max,EA.hv,EA.wk))
+    if E_unit == 'KE':
+        E_new = np.arange(KE_min,KE_max,abs(BE_min-BE_max))
+    if E_unit == 'BE':
+        BE_np = EA.data.shape[1]
+        E_new = np.linspace(BE_max,BE_min,BE_np) #swap order for plotting
+    E_np = E_new.shape[0]
+    
+    #k
+    k_np = EA.angScale.shape[0]
+    if EA.slitDir == 'H':
+        k_new = np.linspace(kx_min,kx_max,k_np)
+    elif EA.slitDir == 'V':
+        k_new = np.linspace(ky_min,ky_max,k_np)
+
+    #hv
+    z_np = len(EA_list)
+    z_new = []
+    
+    #make new stack
+    if EA.slitDir == 'H':
+        data_new = np.empty((E_np,k_np,z_np))
+        data_xx,data_yy = np.meshgrid(k_new,E_new)
+    elif EA.slitDir == 'V':
+        data_new = np.empty((k_np,E_np,z_np))
+        data_xx,data_yy = np.meshgrid(E_new,k_new)
+
+    for n, EA in enumerate(EA_list):
+        #convert single slice
+        if type(kwargs['KE_offset']) == float:
+            KE_offset = kwargs['KE_offset']
+        else:
+            KE_offset = kwargs['KE_offset'][0]
+        img = ARPES_angle_k(k_new,EA.data,EA.KEscale,EA.angScale,EA.thetaX,KE_offset,EA.slitDir)
+    
+        if EA.slitDir == 'H':
+            img_y = kmapping_energy_scale(EA,E_unit='BE',KE_offset=KE_offset)
+            img_x = k_new     
+        elif EA.slitDir == 'V':
+            img_x = kmapping_energy_scale(EA,E_unit='BE',KE_offset=KE_offset)
+            img_y = k_new
+            
+        #now we need to interp image into 3D array
+        #print('img:',img.shape,img_y.shape, img_x.shape)
+        #print('data_new:',data_new.shape,data_yy.shape,data_xx.shape)
+
+        img_xx,img_yy = np.meshgrid(img_x,img_y)
+        data_new[:,:,n] = interpolate.griddata((np.ravel(img_xx),np.ravel(img_yy)),np.ravel(img),(data_xx,data_yy),fill_value=np.nan,rescale=True)
+            
+    return data_new, E_new, k_new
         
 ##########################################
 # generalized code for saving and loading as part of a large hd5f -JM 4/27/21
@@ -411,4 +397,3 @@ def nARPES_h5Group_r(h):
         if attr in h.attrs:
             setattr(d,attr,ast.literal_eval(h.attrs[attr]))
     return d   
-

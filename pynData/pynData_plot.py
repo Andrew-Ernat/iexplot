@@ -12,7 +12,17 @@ def niceplot(*ds,**kwargs):
     Simple plot for 1D and 2D nData
     *ds pnData files
 	**kwargs see plot_2D and plot_3D
-	
+	**kwargs plot_1D
+        xrange=[x_first,x_last] to plot subrange 
+        Norm2One: True/False to normalize graph between zero and one
+        offset: y -= offset 
+        offset_mean_index: y -= np.mean(y[scale_mean_index[0]:scale_mean_index[-1]])
+        scale: y *= scale
+        scale_mean_index: y /= np.mean(y[scale_mean_index[0]:scale_mean_index[-1]])
+        offset_x: x += offset_x 
+        scale_x: x *= scale_x
+
+
     '''
     plt.figure()
     d=ds[0]

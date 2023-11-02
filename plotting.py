@@ -523,10 +523,6 @@ def colormap_colors(i,size,cmap_name,**kwargs):
     else:
         print('\n Not a valid color map, see https://matplotlib.org/stable/tutorials/colors/colormaps.html')
         return None
-<<<<<<< HEAD
-    
-
-=======
 
 
 def make_video(video_fname,fps,image_filename_list,image_folder_path,**kwargs):
@@ -580,4 +576,3 @@ def make_video(video_fname,fps,image_filename_list,image_folder_path,**kwargs):
     #cleaning up
     cv2.destroyAllWindows()
     video.release()
->>>>>>> refs/remotes/origin/main

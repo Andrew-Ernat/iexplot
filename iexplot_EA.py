@@ -226,15 +226,9 @@ class PlotEA:
 
         #Stacking data
         d = nstack(nData_list,stack_scale,stack_unit,**kwargs)
-
-        return d
         
-        
-
-<<<<<<< HEAD
-        return d
-=======
         return (dataArray,scaleArray,unitArray)
+
 
     def EAheader_sample(self,scanNum,EAnum=1,**kwargs):
         d = self.mda[scanNum].EA[EAnum].header.sample
@@ -255,4 +249,3 @@ class PlotEA:
     def header_all(self,scanNum,EAnum=1,**kwargs):
         d = self.mda[scanNum].EA[EAnum].header.all
         return d    
->>>>>>> refs/remotes/origin/main

@@ -226,6 +226,8 @@ class PlotEA:
 
         #Stacking data
         d = nstack(nData_list,stack_scale,stack_unit,**kwargs)
+
+        return d
         
         
 

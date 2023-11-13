@@ -5,6 +5,7 @@ from numpy import log as ln
 from scipy.optimize import curve_fit
 from scipy.special import erfc
 import matplotlib.pyplot as plt
+import lmfit
 
 from iexplot.plotting import plot_1D
 from iexplot.plotting import find_closest   #index, value
@@ -26,7 +27,7 @@ def _xrange(x,y,xrange=[np.inf,np.inf]):
 
 
     first_index, first_value = find_closest(x,x_first)
-    last_index, last_falue   = find_closest(x,x_last)
+    last_index, last_value   = find_closest(x,x_last)
 
     if first_index < last_index:
         x_sub = x[first_index:last_index]
@@ -199,6 +200,24 @@ def fit_step(x,y,**kwargs):
         _plot_fit(x,y,x_fit,y_fit,fit_vals,**kwargs)
 
     return  x_fit,y_fit,coefs,covar,fit_vals
+
+
+def fit_voigt(x,y,**kwargs):
+    kwargs.setdefault('plot',True)
+    kwargs.setdefault('xrange',[np.inf,np.inf])
+    
+    #subrange
+    x, y = _xrange(x,y,kwargs['xrange'])    
+    
+    model = lmfit.models.VoigtModel()
+    params = model.guess(y,x=x)
+    
+    y_fit = model.fit(y,params, x=x)
+    
+    if kwargs['plot']:
+        _plot_fit(x,y,x,y_fit.best_fit,**kwargs)
+    
+    return y_fit
 
 def _box(x, *p):
     """

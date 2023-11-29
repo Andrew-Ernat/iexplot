@@ -187,11 +187,14 @@ class PlotEA:
         if kwargs['debug']:
             print(args)
             print(len(args))
-
+        
+        
         scanNumlist=_shortlist(*args,llist=list(self.mda.keys()),**kwargs)
         nData_list = []
         stack_scale=np.empty((0))
         for scanNum in scanNumlist:
+            if kwargs['debug']:
+                print('scanNumlist: ',scanNumlist)
             try:
                 if len(args)==1:
                     stack_scale = np.concatenate((stack_scale,self.mda[scanNum].posy[0].data))
@@ -200,9 +203,16 @@ class PlotEA:
                     stack_scale = np.append(stack_scale,scanNum)
                     stack_unit='scanNum'
                 if kwargs['debug']:
-                    print(stack_scale)
-                    print(stack_unit)
-                for EAnum in self.mda[scanNum].EA.keys():
+                    print('stack_scale: ',stack_scale)
+                    print('stack_unit',stack_unit)
+                ll = (self.mda[scanNum].EA.keys())
+                if 'EAnum' in kwargs:
+                    EAlist = _shortlist(kwargs['EAnum'],ll,**kwargs)
+                else:
+                    EAlist = ll
+                if kwargs['debug']:
+                    print('EAlist: ',EAlist)
+                for EAnum in EAlist:
                     if kwargs['EDConly']:
                         if kwargs['debug']:
                             #print('EDConly')

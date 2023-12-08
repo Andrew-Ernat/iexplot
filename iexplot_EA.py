@@ -195,36 +195,36 @@ class PlotEA:
         for scanNum in scanNumlist:
             if kwargs['debug']:
                 print('scanNumlist: ',scanNumlist)
-            try:
-                if len(args)==1:
-                    stack_scale = np.concatenate((stack_scale,self.mda[scanNum].posy[0].data))
-                    stack_unit =self.mda[scanNum].posy[0].pv[1]
+            #try:
+            if len(args)==1:
+                stack_scale = np.concatenate((stack_scale,self.mda[scanNum].posy[0].data))
+                stack_unit =self.mda[scanNum].posy[0].pv[1]
+            else:
+                stack_scale = np.append(stack_scale,scanNum)
+                stack_unit='scanNum'
+            if kwargs['debug']:
+                print('stack_scale: ',stack_scale)
+                print('stack_unit',stack_unit)
+            ll = (self.mda[scanNum].EA.keys())
+            if 'EAnum' in kwargs:
+                EAlist = _shortlist(kwargs['EAnum'],ll,**kwargs)
+            else:
+                EAlist = ll
+            if kwargs['debug']:
+                print('EAlist: ',EAlist)
+            for EAnum in EAlist:
+                if kwargs['EDConly']:
+                    if kwargs['debug']:
+                        #print('EDConly')
+                        pass
+                    nData_list.append(self.mda[scanNum].EA[EAnum].EDC)
                 else:
-                    stack_scale = np.append(stack_scale,scanNum)
-                    stack_unit='scanNum'
-                if kwargs['debug']:
-                    print('stack_scale: ',stack_scale)
-                    print('stack_unit',stack_unit)
-                ll = (self.mda[scanNum].EA.keys())
-                if 'EAnum' in kwargs:
-                    EAlist = _shortlist(kwargs['EAnum'],ll,**kwargs)
-                else:
-                    EAlist = ll
-                if kwargs['debug']:
-                    print('EAlist: ',EAlist)
-                for EAnum in EAlist:
-                    if kwargs['EDConly']:
-                        if kwargs['debug']:
-                            #print('EDConly')
-                            pass
-                        nData_list.append(self.mda[scanNum].EA[EAnum].EDC)
-                    else:
-                        nData_list.append(self.mda[scanNum].EA[EAnum])
+                    nData_list.append(self.mda[scanNum].EA[EAnum])
 
-                #Truncating stack_scale for number of images        
-                stack_scale = stack_scale[0:len(nData_list)]
-            except:
-                print('no EA data for ', scanNum)
+            #Truncating stack_scale for number of images        
+            stack_scale = stack_scale[0:len(nData_list)]
+            #except:
+            #   print('no EA data for ', scanNum)
                     
         extras={'stack':scanNumlist}
 

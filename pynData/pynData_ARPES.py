@@ -291,6 +291,9 @@ def kmapping_energy_scale(EA,E_unit='BE',**kwargs):
 
 def kmapping_stack(EA_list, E_unit='BE',**kwargs):
     """
+    creates a volume of stacked spectra in k-space
+
+    EA_list = 
     """
     kwargs.setdefault('KE_offset',0.0)
     kwargs.setdefault('crop_range',(30,500))
@@ -332,7 +335,7 @@ def kmapping_stack(EA_list, E_unit='BE',**kwargs):
         if type(kwargs['KE_offset']) == float:
             KE_offset = kwargs['KE_offset']
         else:
-            KE_offset = kwargs['KE_offset'][0]
+            KE_offset = kwargs['KE_offset'][n]
         img = ARPES_angle_k(k_new,EA.data,EA.KEscale,EA.angScale,EA.thetaX,KE_offset,EA.slitDir)
     
         if EA.slitDir == 'H':

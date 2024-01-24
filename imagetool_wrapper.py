@@ -1,8 +1,13 @@
 import numpy as np
 import re
 from time import sleep
+from lmfit import Parameters
 import pyimagetool as it
 from iexplot.plotting import plot_1D, plot_2D, plot_dimage
+from iexplot.pynData.pynData_ARPES import kmapping_energy_scale, kmapping_stack
+from iexplot.pynData.pynData import nstack
+from iexplot.utilities import _shortlist
+from iexplot.fitting import fit_voigt, fit_step
 
 class IEX_IT:
     instances = {}
@@ -68,7 +73,100 @@ class IEX_IT:
 
         return name
 
+    def find_EF_offset(EA_list, E_unit,fit_type,xrange, plot = False):
+        '''
+        finds and applies the Fermi level offset for each scan in EA_list
+        
+        EA_list = list of EA scans 
+        E_unit = KE or BE
+        fit_type = function to fit data to, 'step' or 'Voigt'
+        xrange = subrange of each scan to be fit
+        '''
+        
+        #kwargs.setdefault('xrange',[-np.inf,np.inf])
+        
+        f = {}
+        cen = list()
+        for i, EA in enumerate(EA_list):
+            if E_unit == 'BE':
+                x = EA.BEscale
+            else:
+                x = EA.KEscale
+                
+            y = EA.EDC.data
+            if fit_type == 'step':
+                fi = fit_step(x,y,xrange=xrange, plot=plot)
+                f[i] = fi
+                cen.append(fi[2][1])
+            elif fit_type == 'Voigt':
+                fi = fit_voigt(x,y,xrange=xrange, plot=plot)
+                f[i] = fi
+                cen.append(fi.params['center'].value)
+            else:
+                print(fit_type + 'is not a valid fitting function, see doc string')
+                
+        return np.array(cen)
+    
+    def make_EA_list(self, scanNumlist, **kwargs):
+        """
+        creates an EA_list from list of scans
+        
+        scanNumlist = list of mda scans to be plotted 
+        
+        **kwargs:      
+                EAnum = (start,stop,countby) => to plot a subset of EA scans
+                EDConly = False (default) to stack the full image
+                        = True to stack just the 1D EDCs
+            
+        """
+        kwargs.setdefault('EDConly',False)
+        kwargs.setdefault('debug',False) 
+        
+        
+        EA_list = []
+        stack_scale=np.empty((0))
+        
+        for scanNum in scanNumlist:
+            if kwargs['debug']:
+                print('scanNumlist: ',scanNumlist)
+            if len(scanNumlist)==1:
+                stack_scale = np.concatenate((stack_scale,self.mda[scanNum].posy[0].data))
+                stack_unit =self.mda[scanNum].posy[0].pv[1]
+            else:
+                stack_scale = np.append(stack_scale,scanNum)
+                stack_unit='scanNum'
 
+            if kwargs['debug']:
+                print('stack_scale: ',stack_scale)
+                print('stack_unit',stack_unit)
+
+
+            #creating list of all EA numbers
+            ll = list(self.mda[scanNum].EA.keys())
+            
+            #creating shortlist of selected EAnum
+            if 'EAnum' in kwargs:
+                EAlist = _shortlist(kwargs['EAnum'],llist = ll,**kwargs)  
+            else:
+                EAlist = ll
+            
+            if kwargs['debug']:
+                print('EAlist: ',EAlist)
+
+            #populating EA_list with EA/EDC scans
+            for EAnum in EAlist:
+                if kwargs['EDConly']:
+                    if kwargs['debug']:
+                        #print('EDConly')
+                        pass
+                    EA_list.append(self.mda[scanNum].EA[EAnum].EDC)
+                else:
+                    EA_list.append(self.mda[scanNum].EA[EAnum])
+
+            #Truncating stack_scale for number of images        
+            stack_scale = stack_scale[0:len(EA_list)]    
+                
+        return EA_list, stack_scale
 
     def it_mda(self, scanNum, detNum):
         """
@@ -95,22 +193,137 @@ class IEX_IT:
         tool.setWindowTitle(name)
         tool.show()
 
-
-    def it_stack_mdaEA(self, scanNum, **kwargs):
-        """
-        plot 3D mda EA data in imagetool
-        """
-
-        d = self.stack_mdaEA(scanNum,**kwargs)
+    def it_pynData(self,d):
         ra = pynData_to_ra(d)
-
         tool = it.imagetool(ra)
         name = self._append_instance(tool)
         tool.setWindowTitle(name)
         tool.show()
+
+    def stack_mdaEA(EA_list,stack_scale, E_unit,**kwargs):
+        """
+        creates a volume of stacked spectra/or EDCs based on kwargs
+        Note: does not currently account for scaling (dumb stacking)
+
+        *args = scanNum if volume is a single Fermi map scan
+                = scanNum, start, stop, countby for series of mda scans
+
+        **kwargs:      
+            EAnum = (start,stop,countby) => to plot a subset of scans
+            EDConly = False (default) to stack the full image
+                    = True to stack just the 1D EDCs
+                    
+            KE_offset = offset value for each scan based on curve fitting
+            KE_offset type = np array if an offset is applied, float if no offset is applied
+            
+        """
+        kwargs.setdefault('KE_offset',0.0)
+        kwargs.setdefault('debug',False)
+        kwargs.setdefault('array_output',True)
         
+        EA = EA_list[0]
+        
+        for n,EA in enumerate(EA_list):
+            if n == 0: 
+                KE_min = np.min(EA.KEscale)
+                KE_max = np.max(EA.KEscale)
+            _KE_min = np.min(EA.KEscale)
+            _KE_max = np.max(EA.KEscale)
+            KE_min = min(KE_min, _KE_min)
+            KE_max = max(KE_max, _KE_max)
+               
+        
+            
+        #BE/KE conversion
+        for i,EAnum in enumerate(EA_list):
+            if type(kwargs['KE_offset']) == float:
+                KE_offset = kwargs['KE_offset']
+            else:
+                KE_offset = kwargs['KE_offset'][i]
+            E_scale = kmapping_energy_scale(EAnum, E_unit, KE_offset = KE_offset) #new function name?
+            EA_list[i].scale['x'] = E_scale
+            
+        print(type(KE_offset))  
+        print(KE_offset)
+            
+        #Stacking data
+        d = nstack(EA_list, stack_scale, **kwargs)
+        
+        return d    
+
+
+    def it_mdaEA(self, *args, **kwargs):
+        """
+        plot 3D mda EA data in imagetool
+        
+        self = IEXdata object
+        
+        *args = scanNum if volume is a single Fermi map scan
+            = start, stop, countby for series of mda scans    
+            
+        
+        kwargs:
+            E_unit = KE or BE
+            E_offset = energy offset, subtracted from scale
+            ang_offset = angle offset
+            y_scale = k or angle
+            EAnum = (start,stop,countby) => to plot a subset of EA scans
+            EDConly = False (default) to stack the full image
+                    = True to stack just the 1D EDCs
+            find_E_offset   = False (default), does not offset data
+                            = True, will apply offset
+            fit_type = fitting function used to calculate offset, 'step' or 'Voigt'
+            fit_xrange = subrange to apply fitting function over
+        
+        
+        """
+        kwargs.setdefault('E_unit','KE')
+        kwargs.setdefault('find_E_offset',False)
+        kwargs.setdefault('offset_type','step')
+        kwargs.setdefault('ang_offset',0.0)
+        kwargs.setdefault('kmap',False)
+        kwargs.setdefault('array_output', False)
+        kwargs.setdefault('EAnum',1)
+        kwargs.setdefault('EDConly', False)
+        kwargs.setdefault('fit_xrange', [-np.inf,np.inf])
+        
+        scanNumlist=_shortlist(*args,llist=list(self.mda.keys()),**kwargs)
+        
+
+        EA_list, stack_scale = make_EA_list(self, scanNumlist, EAnum = kwargs['EAnum'], EDConly = kwargs['EDConly'])
+        
+        if kwargs['find_E_offset']:
+            E_offset = find_EF_offset(EA_list, E_unit = kwargs['E_unit'], fit_type = kwargs['fit_type'], xrange = kwargs['fit_xrange'])
+        else: 
+            E_offset = 0.0
+
+            
+        hv_list = []
+        for EA in EA_list:
+            hv_list.append(EA.hv)
+        hv_array = np.array(hv_list)
+        
+        #adjusting angle scaling
+        for EA in EA_list:
+            EA.scaleAngle(kwargs['ang_offset'])
+        
+        if len(EA_list) == 1:
+            d = EA_list[0]
+        else:
+            if kwargs['kmap'] == True:
+                d = kmapping_stack(EA_list, E_unit = kwargs['E_unit'], KE_offset = -E_offset)
+            else:
+                d = stack_mdaEA(EA_list,stack_scale, E_unit = kwargs['E_unit'], KE_offset = -E_offset)
+        
+        if kwargs['array_output'] == True:
+            return d
+        else:
+            it_pynData(self,d)
     
-    def it_export(self, it_num, img_prof, output):
+    
+    
+
+    def it_export(self, it_num, img_prof, output,**kwargs):
         """
         extract data from an individual plot in imagetool
 
@@ -123,7 +336,10 @@ class IEX_IT:
         output = how image data will be returned
         output type = string (see output_list for options)
         """
-        axis_dict = {'prof_h':['x','Intensity',1], 'prof_v':['y','Intensity',0], 'prof_d':['z','Intensity',2], 'img_main':['xy',0,1], 'img_v':['zy',0,2], 'img_h':['xz',2,1]}
+
+        kwargs.setdefault('cmap','viridis')
+
+        axis_dict = {'prof_h':['x','Intensity',1], 'prof_v':['y','Intensity',0], 'prof_d':['z','Intensity',2], 'img_main':['xy',0,1], 'img_v':['zy',2,1], 'img_h':['xz',0,2]}
         output_list = ('data','plot','profile_plot')
         d = self.IT_instances()
         tool = d['tool_'+str(it_num)]
@@ -132,15 +348,16 @@ class IEX_IT:
         img = tool.get(it_img_name)
         if output in output_list:
             if output == 'data':
-                return img  #add properties and axes here
+                cursor_info = IEX_IT.get_it_properties(tool)
+                return img, cursor_info  #add properties and axes here
             if output == 'plot':
                 if 'img' in img_prof:
-                    plot_2D(img.data.T,img.axes[::-1],(tool.data.dims[dim_y],tool.data.dims[dim_x]))
+                    plot_2D(img.data.T,img.axes[::-1],(tool.data.dims[dim_x],tool.data.dims[dim_y]),cmap = kwargs['cmap'])
                 elif 'prof' in img_prof:
                     plot_1D(img[0],img[1],xlabel=tool.data.dims[dim_x],ylabel = dim_y)
             if output == 'profile_plot':
                 if 'img' in img_prof: 
-                    plot_dimage(img.data.T,img.axes[::-1],(tool.data.dims[dim_y],tool.data.dims[dim_x]))
+                    plot_dimage(img.data.T,img.axes[::-1],(tool.data.dims[dim_x],tool.data.dims[dim_y]),cmap = kwargs['cmap'])
                 elif 'prof' in img_prof:
                     print('Error: cannot output a plot with profile for a profile')
         else:
@@ -193,13 +410,3 @@ def pynData_to_ra(d):
     ra = it.RegularDataArray(dataArray, delta = delta, coord_min = coord_min, dims = unitArray)
 
     return ra
-
-
-'''
-check to make sure functions work with mda files
-control cursors from command line
-interpolate scales
-
-it_export
-plot_3D
-'''

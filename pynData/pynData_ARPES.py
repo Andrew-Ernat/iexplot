@@ -268,15 +268,15 @@ def kmapping_energy_scale(EA,E_unit='BE',**kwargs):
     **kwargs (all can be a float or a np.array of the same length as KEscale)
         hv = photon energy, default is EA.hv
         wk = work function, default is EA.wk
-        KE_offset = Kinetic energy offset, default = 0
+        E_offset = Kinetic energy offset, default = 0
     
     returns EA image scaling in KE or BE including an offsets
     """
     kwargs.setdefault('hv',EA.hv)
     kwargs.setdefault('wk',EA.wk)
-    kwargs.setdefault('KE_offset',0.0)
+    kwargs.setdefault('E_offset',0.0)
     
-    KE = EA.KEscale+kwargs['KE_offset']
+    KE = EA.KEscale+kwargs['E_offset']
     wk = kwargs['wk']
     hv = kwargs['hv']
     

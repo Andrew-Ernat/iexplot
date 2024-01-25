@@ -7,7 +7,7 @@ from iexplot.plotting import plot_1D, plot_2D, plot_dimage
 from iexplot.pynData.pynData_ARPES import kmapping_stack
 from iexplot.utilities import _shortlist
 from iexplot.fitting import fit_voigt, fit_step, find_EF_offset
-from iexplot.iexplot_EA import PlotEA
+from iexplot.iexplot_EA import PlotEA, _stack_mdaEA_from_list
 
 class IEX_IT:
     instances = {}
@@ -76,66 +76,7 @@ class IEX_IT:
     #universal IT plotting functions
     
     
-    def make_EA_list(self, scanNumlist, **kwargs):
-        """
-        creates an EA_list from list of scans
-        
-        scanNumlist = list of mda scans to be plotted 
-        
-        **kwargs:      
-                EAnum = (start,stop,countby) => to plot a subset of EA scans
-                EDConly = False (default) to stack the full image
-                        = True to stack just the 1D EDCs
-            
-        """
-        kwargs.setdefault('EDConly',False)
-        kwargs.setdefault('debug',False) 
-        
-        
-        EA_list = []
-        stack_scale=np.empty((0))
-        
-        for scanNum in scanNumlist:
-            if kwargs['debug']:
-                print('scanNumlist: ',scanNumlist)
-            if len(scanNumlist)==1:
-                stack_scale = np.concatenate((stack_scale,self.mda[scanNum].posy[0].data))
-                stack_unit =self.mda[scanNum].posy[0].pv[1]
-            else:
-                stack_scale = np.append(stack_scale,scanNum)
-                stack_unit='scanNum'
-
-            if kwargs['debug']:
-                print('stack_scale: ',stack_scale)
-                print('stack_unit',stack_unit)
-
-
-            #creating list of all EA numbers
-            ll = list(self.mda[scanNum].EA.keys())
-            
-            #creating shortlist of selected EAnum
-            if 'EAnum' in kwargs:
-                EAlist = _shortlist(kwargs['EAnum'],llist = ll,**kwargs)  
-            else:
-                EAlist = ll
-            
-            if kwargs['debug']:
-                print('EAlist: ',EAlist)
-
-            #populating EA_list with EA/EDC scans
-            for EAnum in EAlist:
-                if kwargs['EDConly']:
-                    if kwargs['debug']:
-                        #print('EDConly')
-                        pass
-                    EA_list.append(self.mda[scanNum].EA[EAnum].EDC)
-                else:
-                    EA_list.append(self.mda[scanNum].EA[EAnum])
-
-            #Truncating stack_scale for number of images        
-            stack_scale = stack_scale[0:len(EA_list)]    
-                
-        return EA_list, stack_scale
+    
 
     def it_mda(self, scanNum, detNum):
         """
@@ -162,7 +103,8 @@ class IEX_IT:
         tool.setWindowTitle(name)
         tool.show()
 
-    def it_pynData(self,d):
+    
+    def it_pynData(self, d):
         ra = pynData_to_ra(d)
         tool = it.imagetool(ra)
         name = self._append_instance(tool)
@@ -170,13 +112,13 @@ class IEX_IT:
         tool.show()
 
 
-    def it_mdaEA(self, *args, **kwargs):
+    def it_mdaEA(self, *scanNums, **kwargs):
         """
-        plot 3D mda EA data in imagetool
+        stack and plot 3D mda EA data in imagetool
         
         self = IEXdata object
         
-        *args = scanNum if volume is a single Fermi map scan
+        *scanNums = scanNum if volume is a single Fermi map scan
             = start, stop, countby for series of mda scans    
             
         
@@ -203,11 +145,11 @@ class IEX_IT:
         kwargs.setdefault('EAnum',1)
         kwargs.setdefault('EDConly', False)
         kwargs.setdefault('fit_xrange', [-np.inf,np.inf])
-        
-        scanNumlist=_shortlist(*args,llist=list(self.mda.keys()),**kwargs)
+
+        scanNumlist=_shortlist(*scanNums,llist=list(self.mda.keys()),**kwargs)
         
 
-        EA_list, stack_scale = make_EA_list(self, scanNumlist, EAnum = kwargs['EAnum'], EDConly = kwargs['EDConly'])
+        EA_list, stack_scale = PlotEA.make_EA_list(self, scanNumlist, EAnum = kwargs['EAnum'], EDConly = kwargs['EDConly'])
         
         if kwargs['find_E_offset']:
             E_offset = find_EF_offset(EA_list, E_unit = kwargs['E_unit'], fit_type = kwargs['fit_type'], xrange = kwargs['fit_xrange'])
@@ -230,12 +172,12 @@ class IEX_IT:
             if kwargs['kmap'] == True:
                 d = kmapping_stack(EA_list, E_unit = kwargs['E_unit'], KE_offset = -E_offset)
             else:
-                d = PlotEA.stack_mdaEA(EA_list,stack_scale, E_unit = kwargs['E_unit'], KE_offset = -E_offset)
+                d = _stack_mdaEA_from_list(EA_list,stack_scale, E_unit = kwargs['E_unit'], KE_offset = -E_offset)
         
         if kwargs['array_output'] == True:
             return d
         else:
-            it_pynData(self,d)
+            self.it_pynData(self,d)
     
     
     
@@ -297,6 +239,9 @@ class IEX_IT:
             
         dictionary['axes']=val
         return dictionary
+    
+
+    
 
 def pynData_to_ra(d):
     """

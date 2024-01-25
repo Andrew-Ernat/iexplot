@@ -195,7 +195,7 @@ class nData:
         h = h5py.File(fpath, 'w')
         
         h.create_dataset('data', data=self.data, dtype='f')
-        
+        '''
         scale = h.create_group('scale')
         for ax in self.scale.keys():
             scale.create_dataset(ax, data=self.scale[ax], dtype='f')
@@ -207,7 +207,23 @@ class nData:
         extras = h.create_group('extras')
         for key in self.extras.keys():
             extras.attrs[key] = self.extras[key]
-        
+        '''
+
+        for group in self:
+            group = h.create_group('group')
+            if group == 'scale':
+                for ax in self.group.keys():
+                    group.create_dataset(ax, data=self.scale[ax], dtype='f')
+            elif group == 'unit':
+                for ax in self.group.keys():
+                    group.attrs[ax] = self.unit[ax]
+            else:
+                for key in self.group.keys():
+                    group.attrs[key] = self.group[key]
+
+
+
+
         h.close()
         return
 

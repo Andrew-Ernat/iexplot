@@ -4,10 +4,10 @@ from time import sleep
 from lmfit import Parameters
 import pyimagetool as it
 from iexplot.plotting import plot_1D, plot_2D, plot_dimage
-from iexplot.pynData.pynData_ARPES import kmapping_energy_scale, kmapping_stack
-from iexplot.pynData.pynData import nstack
+from iexplot.pynData.pynData_ARPES import kmapping_stack
 from iexplot.utilities import _shortlist
-from iexplot.fitting import fit_voigt, fit_step
+from iexplot.fitting import fit_voigt, fit_step, find_EF_offset
+from iexplot.iexplot_EA import PlotEA
 
 class IEX_IT:
     instances = {}
@@ -73,39 +73,8 @@ class IEX_IT:
 
         return name
 
-    def find_EF_offset(EA_list, E_unit,fit_type,xrange, plot = False):
-        '''
-        finds and applies the Fermi level offset for each scan in EA_list
-        
-        EA_list = list of EA scans 
-        E_unit = KE or BE
-        fit_type = function to fit data to, 'step' or 'Voigt'
-        xrange = subrange of each scan to be fit
-        '''
-        
-        #kwargs.setdefault('xrange',[-np.inf,np.inf])
-        
-        f = {}
-        cen = list()
-        for i, EA in enumerate(EA_list):
-            if E_unit == 'BE':
-                x = EA.BEscale
-            else:
-                x = EA.KEscale
-                
-            y = EA.EDC.data
-            if fit_type == 'step':
-                fi = fit_step(x,y,xrange=xrange, plot=plot)
-                f[i] = fi
-                cen.append(fi[2][1])
-            elif fit_type == 'Voigt':
-                fi = fit_voigt(x,y,xrange=xrange, plot=plot)
-                f[i] = fi
-                cen.append(fi.params['center'].value)
-            else:
-                print(fit_type + 'is not a valid fitting function, see doc string')
-                
-        return np.array(cen)
+    #universal IT plotting functions
+    
     
     def make_EA_list(self, scanNumlist, **kwargs):
         """
@@ -200,57 +169,6 @@ class IEX_IT:
         tool.setWindowTitle(name)
         tool.show()
 
-    def stack_mdaEA(EA_list,stack_scale, E_unit,**kwargs):
-        """
-        creates a volume of stacked spectra/or EDCs based on kwargs
-        Note: does not currently account for scaling (dumb stacking)
-
-        *args = scanNum if volume is a single Fermi map scan
-                = scanNum, start, stop, countby for series of mda scans
-
-        **kwargs:      
-            EAnum = (start,stop,countby) => to plot a subset of scans
-            EDConly = False (default) to stack the full image
-                    = True to stack just the 1D EDCs
-                    
-            KE_offset = offset value for each scan based on curve fitting
-            KE_offset type = np array if an offset is applied, float if no offset is applied
-            
-        """
-        kwargs.setdefault('KE_offset',0.0)
-        kwargs.setdefault('debug',False)
-        kwargs.setdefault('array_output',True)
-        
-        EA = EA_list[0]
-        
-        for n,EA in enumerate(EA_list):
-            if n == 0: 
-                KE_min = np.min(EA.KEscale)
-                KE_max = np.max(EA.KEscale)
-            _KE_min = np.min(EA.KEscale)
-            _KE_max = np.max(EA.KEscale)
-            KE_min = min(KE_min, _KE_min)
-            KE_max = max(KE_max, _KE_max)
-               
-        
-            
-        #BE/KE conversion
-        for i,EAnum in enumerate(EA_list):
-            if type(kwargs['KE_offset']) == float:
-                KE_offset = kwargs['KE_offset']
-            else:
-                KE_offset = kwargs['KE_offset'][i]
-            E_scale = kmapping_energy_scale(EAnum, E_unit, KE_offset = KE_offset) #new function name?
-            EA_list[i].scale['x'] = E_scale
-            
-        print(type(KE_offset))  
-        print(KE_offset)
-            
-        #Stacking data
-        d = nstack(EA_list, stack_scale, **kwargs)
-        
-        return d    
-
 
     def it_mdaEA(self, *args, **kwargs):
         """
@@ -264,7 +182,6 @@ class IEX_IT:
         
         kwargs:
             E_unit = KE or BE
-            E_offset = energy offset, subtracted from scale
             ang_offset = angle offset
             y_scale = k or angle
             EAnum = (start,stop,countby) => to plot a subset of EA scans
@@ -313,7 +230,7 @@ class IEX_IT:
             if kwargs['kmap'] == True:
                 d = kmapping_stack(EA_list, E_unit = kwargs['E_unit'], KE_offset = -E_offset)
             else:
-                d = stack_mdaEA(EA_list,stack_scale, E_unit = kwargs['E_unit'], KE_offset = -E_offset)
+                d = PlotEA.stack_mdaEA(EA_list,stack_scale, E_unit = kwargs['E_unit'], KE_offset = -E_offset)
         
         if kwargs['array_output'] == True:
             return d

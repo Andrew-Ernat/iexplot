@@ -335,3 +335,34 @@ def _plot_fit(x,y,x_fit,y_fit,fit_vals={},**kwargs):
     plt.legend()
     plt.show()
 
+def find_EF_offset(EA_list, E_unit,fit_type,xrange, plot = False):
+        '''
+        finds and applies the Fermi level offset for each scan in EA_list
+        
+        EA_list = list of EA scans 
+        E_unit = KE or BE
+        fit_type = function to fit data to, 'step' or 'Voigt'
+        xrange = subrange of each scan to be fit
+        '''
+        
+        f = {}
+        cen = list()
+        for i, EA in enumerate(EA_list):
+            if E_unit == 'BE':
+                x = EA.BEscale
+            else:
+                x = EA.KEscale
+                
+            y = EA.EDC.data
+            if fit_type == 'step':
+                fi = fit_step(x,y,xrange=xrange, plot=plot)
+                f[i] = fi
+                cen.append(fi[2][1])
+            elif fit_type == 'Voigt':
+                fi = fit_voigt(x,y,xrange=xrange, plot=plot)
+                f[i] = fi
+                cen.append(fi.params['center'].value)
+            else:
+                print(fit_type + 'is not a valid fitting function, see doc string')
+                
+        return np.array(cen)
